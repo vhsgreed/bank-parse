@@ -41,6 +41,32 @@ def parse_xlsx(path: Path) -> list[dict]:
             })
     return out
 
+def parse_ica_csv(path: Path) -> list[dict]:
+    """Parse ICA 'Kontohändelser' exports: ;-separated, Swedish decimal comma.
+
+    Header: Datum;Text;Typ;Belopp;Saldo. Amounts like '-4,00 kr', balances
+    like '3 075,52 kr'. Belopp is the transaction amount, not Importsaldo.
+    """
+    def num(s: str) -> float:
+        if not s: return 0.0
+        s = s.replace(" ", "").replace("kr", "").strip().replace(",", ".")
+        try: return float(s)
+        except ValueError: return 0.0
+    out = []
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for r in csv.reader(fh, delimiter=";"):
+            if not r or not r[0] or r[0].lower() == "datum": continue
+            if len(r) < 4: continue
+            out.append({
+                "account": "ICA Matkonto",
+                "reskontra": "",
+                "trans_date": r[0].strip(),
+                "text": r[1].strip() + (" (" + r[2].strip() + ")" if len(r) > 2 and r[2] else ""),
+                "amount": num(r[3]),
+                "balance": num(r[4]) if len(r) > 4 else None,
+            })
+    return out
+
 def dedupe(rows: list[dict]) -> list[dict]:
     """Drop rows repeated across overlapping exports.
 
@@ -68,7 +94,11 @@ def main():
     args = ap.parse_args()
     rows = []
     for f in args.files:
-        rows += parse_xlsx(Path(f))
+        p = Path(f)
+        if p.suffix.lower() == ".csv":
+            rows += parse_ica_csv(p)
+        else:
+            rows += parse_xlsx(p)
     if args.keep_duplicates:
         kept = rows
     else:
