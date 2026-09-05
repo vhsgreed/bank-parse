@@ -23,3 +23,7 @@ load into any spreadsheet or finance tool.
 
 CSV with unified columns. Multiple input files are merged and sorted
 by date.
+
+## Links
+
+Part of the [vhsgreed](https://vhsgreed.win) toolset: data, code, and methods in the open.
